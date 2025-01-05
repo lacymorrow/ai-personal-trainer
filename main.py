@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from datetime import datetime, time, timedelta
 from pydantic import BaseModel
+from typing import Optional, List
 import json
 import os
 from dotenv import load_dotenv
@@ -33,22 +34,22 @@ class UserCreate(BaseModel):
 # Pydantic models for workout completion and progress tracking
 class ExerciseLogCreate(BaseModel):
     exercise_name: str
-    sets_completed: int
-    reps_completed: int | None = None
-    weight_used: float | None = None
-    duration: int | None = None
+    sets_completed: Optional[int] = None
+    reps_completed: Optional[int] = None
+    weight_used: Optional[float] = None
+    duration: Optional[int] = None
 
 class WorkoutComplete(BaseModel):
-    difficulty_rating: int | None = None
-    notes: str | None = None
-    exercise_logs: list[ExerciseLogCreate]
+    difficulty_rating: Optional[int] = None
+    notes: Optional[str] = None
+    exercise_logs: List[ExerciseLogCreate]
 
 class ChallengeResponse(BaseModel):
     id: int
     name: str
     description: str
     target_value: int
-    current_value: int | None = None
+    current_value: Optional[int] = None
     reward_points: int
     completed: bool = False
     end_date: datetime
@@ -62,7 +63,7 @@ class UserProgressResponse(BaseModel):
     longest_streak: int
     streak_multiplier: float
     achievements: list
-    active_challenges: list[ChallengeResponse]
+    active_challenges: List[ChallengeResponse]
 
 app = FastAPI()
 

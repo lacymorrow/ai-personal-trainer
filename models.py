@@ -24,6 +24,16 @@ class User(Base):
     level = Column(Integer, default=1)
     experience_points = Column(Integer, default=0)
     title = Column(String, default="Rookie Lifter")  # Dynamic titles based on achievements
+    
+    soundtrack_preferences = relationship("SoundtrackPreference", back_populates="user")
+    highlights = relationship("WorkoutHighlight", back_populates="user")
+    ai_motivator = relationship("AIMotivator", back_populates="user")
+    progress_photos = relationship("TransformationProgress", back_populates="user")
+    
+    spotify_connected = Column(Boolean, default=False)
+    social_handle = Column(String, nullable=True)
+    preferred_gym = Column(String, nullable=True)
+    workout_style = Column(String, nullable=True)  # e.g., 'powerlifting', 'crossfit', 'calisthenics'
 
 class Workout(Base):
     __tablename__ = "workouts"
@@ -39,6 +49,10 @@ class Workout(Base):
 
     user = relationship("User", back_populates="workouts")
     exercise_logs = relationship("ExerciseLog", back_populates="workout")
+    highlights = relationship("WorkoutHighlight", back_populates="workout")
+    
+    soundtrack_id = Column(String, nullable=True)  # Spotify playlist ID
+    workout_intensity = Column(String, nullable=True)  # 'beast_mode', 'regular', 'recovery'
 
 class ExerciseLog(Base):
     __tablename__ = "exercise_logs"
@@ -124,3 +138,87 @@ class ChallengeParticipant(Base):
 
     challenge = relationship("Challenge", back_populates="participants")
     user = relationship("User", back_populates="challenge_participations")
+
+class SoundtrackPreference(Base):
+    __tablename__ = "soundtrack_preferences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    vibe = Column(String)  # e.g., 'hype', 'chill', 'beast_mode'
+    genres = Column(String)  # JSON list of preferred genres
+    bpm_range = Column(String)  # JSON object with min/max BPM
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="soundtrack_preferences")
+
+class WorkoutHighlight(Base):
+    __tablename__ = "workout_highlights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    workout_id = Column(Integer, ForeignKey("workouts.id"))
+    title = Column(String)  # e.g., "New PR Alert! 🚀"
+    description = Column(String)
+    media_url = Column(String)  # URL to image/video
+    highlight_type = Column(String)  # 'pr', 'streak', 'transformation'
+    likes = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="highlights")
+    workout = relationship("Workout", back_populates="highlights")
+
+class AIMotivator(Base):
+    __tablename__ = "ai_motivators"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    personality = Column(String)  # e.g., 'hype_beast', 'zen_master', 'gym_bro'
+    voice_id = Column(String)  # ElevenLabs voice ID
+    catchphrase = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="ai_motivator")
+    messages = relationship("MotivationalMessage", back_populates="motivator")
+
+class MotivationalMessage(Base):
+    __tablename__ = "motivational_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    motivator_id = Column(Integer, ForeignKey("ai_motivators.id"))
+    message_type = Column(String)  # 'pre_workout', 'during_workout', 'achievement'
+    content = Column(String)
+    audio_url = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    motivator = relationship("AIMotivator", back_populates="messages")
+
+class TransformationProgress(Base):
+    __tablename__ = "transformation_progress"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    photo_url = Column(String)
+    metrics = Column(String)  # JSON with measurements, weight, etc.
+    mood = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="progress_photos")
+
+class Friendship(Base):
+    __tablename__ = "friendships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    friend_id = Column(Integer, ForeignKey("users.id"))
+    status = Column(String)  # 'pending', 'accepted'
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class GymSpotted(Base):
+    __tablename__ = "gym_spotted"
+
+    id = Column(Integer, primary_key=True, index=True)
+    spotter_id = Column(Integer, ForeignKey("users.id"))
+    spotted_id = Column(Integer, ForeignKey("users.id"))
+    gym_location = Column(String)
+    message = Column(String)  # e.g., "Saw you crushing those deadlifts! 💪"
+    created_at = Column(DateTime, default=datetime.utcnow)
