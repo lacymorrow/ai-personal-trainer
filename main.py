@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,7 +33,52 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+# Global components
+workout_generator = None
+voice_generator = None
+spotify_player = None
+workout_enhancer = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle manager for FastAPI application"""
+    # Startup
+    try:
+        logger.info("🚀 Starting up application...")
+        
+        # Initialize components
+        global workout_generator, voice_generator, spotify_player, workout_enhancer
+        workout_generator = WorkoutGenerator()
+        voice_generator = VoiceGenerator()
+        spotify_player = SpotifyPlayer()
+        workout_enhancer = WorkoutEnhancer(
+            spotify_client_id=os.getenv("SPOTIFY_CLIENT_ID"),
+            spotify_client_secret=os.getenv("SPOTIFY_CLIENT_SECRET")
+        )
+        logger.info("✅ Components initialized successfully")
+        
+        # Create static directories if they don't exist
+        os.makedirs("static/audio", exist_ok=True)
+        logger.info("✅ Static directories created")
+        
+        # Create database tables
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("✅ Database tables created successfully")
+        except Exception as e:
+            logger.error(f"❌ Error creating database tables: {str(e)}")
+            raise
+        
+        yield
+    except Exception as e:
+        logger.error(f"❌ Startup error: {str(e)}")
+        raise
+    finally:
+        # Cleanup
+        logger.info("👋 Shutting down application...")
+
+# Initialize FastAPI with lifespan
+app = FastAPI(lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
@@ -43,28 +89,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create database tables
-try:
-    Base.metadata.create_all(bind=engine)
-    logger.info("✅ Database tables created successfully")
-except Exception as e:
-    logger.error(f"❌ Error creating database tables: {str(e)}")
-    raise
-
-# Initialize components with optional features
-try:
-    workout_generator = WorkoutGenerator()
-    voice_generator = VoiceGenerator()
-    spotify_player = SpotifyPlayer()
-    workout_enhancer = WorkoutEnhancer(
-        spotify_client_id=os.getenv("SPOTIFY_CLIENT_ID"),
-        spotify_client_secret=os.getenv("SPOTIFY_CLIENT_SECRET")
-    )
-    logger.info("✅ Components initialized successfully")
-except Exception as e:
-    logger.error(f"❌ Error initializing components: {str(e)}")
-    raise
-
 # Mount static files and templates
 try:
     app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -73,6 +97,14 @@ try:
 except Exception as e:
     logger.error(f"❌ Error mounting static files: {str(e)}")
     raise
+
+# Database dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Pydantic model for user creation
 class UserCreate(BaseModel):
@@ -116,14 +148,6 @@ class UserProgressResponse(BaseModel):
     achievements: list
     active_challenges: List[ChallengeResponse]
 
-# Database dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -136,8 +160,14 @@ async def health_check():
         return {
             "status": "healthy",
             "database": "connected",
-            "spotify": workout_enhancer.spotify_available,
-            "voice": voice_generator.elevenlabs_available
+            "components": {
+                "workout_generator": workout_generator is not None,
+                "voice_generator": voice_generator is not None,
+                "spotify_player": spotify_player is not None,
+                "workout_enhancer": workout_enhancer is not None,
+                "spotify": workout_enhancer.spotify_available if workout_enhancer else False,
+                "voice": voice_generator.elevenlabs_available if voice_generator else False
+            }
         }
     except Exception as e:
         logger.error(f"❌ Health check failed: {str(e)}")
@@ -156,8 +186,8 @@ async def read_root(request: Request, db: Session = Depends(get_db)):
             "index.html",
             {
                 "request": request,
-                "spotify_enabled": workout_enhancer.spotify_available,
-                "voice_enabled": voice_generator.elevenlabs_available
+                "spotify_enabled": workout_enhancer.spotify_available if workout_enhancer else False,
+                "voice_enabled": voice_generator.elevenlabs_available if voice_generator else False
             }
         )
     except Exception as e:
