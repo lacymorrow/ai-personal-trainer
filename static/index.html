@@ -29,6 +29,20 @@
         .audio-player {
             background: linear-gradient(135deg, #9f7aea 0%, #7f9cf5 100%);
         }
+        .rating-btn {
+            font-size: 1.5rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .rating-btn:hover {
+            transform: scale(1.2);
+        }
+        
+        .rating-btn.selected {
+            transform: scale(1.2);
+        }
     </style>
 </head>
 <body class="py-12 px-4">
@@ -86,27 +100,121 @@
         </div>
         
         <div id="workoutPlan" class="glass-effect rounded-2xl shadow-xl p-8 hidden">
-            <h2 class="text-3xl font-bold text-gray-800 mb-6">Your Personalized Workout Plan</h2>
-            
-            <div id="audioPlayer" class="audio-player rounded-xl p-6 text-white mb-8">
-                <h3 class="font-bold text-xl mb-4">🎧 Your AI Workout Guide</h3>
-                <audio id="workoutAudio" controls class="w-full mb-4">
-                    <source src="" type="audio/mpeg">
-                    Your browser does not support the audio element.
-                </audio>
-                <button onclick="document.getElementById('workoutAudio').play()"
-                    class="w-full bg-white text-purple-600 py-3 px-4 rounded-lg font-semibold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-purple-600 transition-all duration-300">
-                    ▶️ Start Workout Guide
+            <!-- Tabs -->
+            <div class="flex space-x-4 mb-8 border-b border-gray-200">
+                <button onclick="switchTab('workout')" id="workoutTab" 
+                    class="px-4 py-2 text-lg font-semibold border-b-2 border-purple-600 text-purple-600">
+                    Current Workout
+                </button>
+                <button onclick="switchTab('progress')" id="progressTab"
+                    class="px-4 py-2 text-lg font-semibold border-b-2 border-transparent text-gray-500 hover:text-purple-600 hover:border-purple-600">
+                    Progress
                 </button>
             </div>
-            
-            <div id="planContent" class="space-y-6">
-                <!-- Plan content will be inserted here -->
+
+            <!-- Workout Tab -->
+            <div id="workoutContent">
+                <div id="audioPlayer" class="audio-player rounded-xl p-6 text-white mb-8">
+                    <h3 class="font-bold text-xl mb-4">🎧 Your AI Workout Guide</h3>
+                    <audio id="workoutAudio" controls class="w-full mb-4">
+                        <source src="" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <button onclick="document.getElementById('workoutAudio').play()"
+                        class="w-full bg-white text-purple-600 py-3 px-4 rounded-lg font-semibold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-purple-600 transition-all duration-300">
+                        ▶️ Start Workout Guide
+                    </button>
+                </div>
+                
+                <div id="planContent" class="space-y-6">
+                    <!-- Plan content will be inserted here -->
+                </div>
+
+                <!-- Workout Completion Form -->
+                <div id="workoutCompletion" class="mt-8 p-6 bg-gray-50 rounded-xl">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Complete Your Workout</h3>
+                    <form id="completionForm" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">How was your workout?</label>
+                            <div class="flex space-x-4 mt-2">
+                                <button type="button" onclick="rateWorkout(1)" class="rating-btn">😫</button>
+                                <button type="button" onclick="rateWorkout(2)" class="rating-btn">😕</button>
+                                <button type="button" onclick="rateWorkout(3)" class="rating-btn">😊</button>
+                                <button type="button" onclick="rateWorkout(4)" class="rating-btn">💪</button>
+                                <button type="button" onclick="rateWorkout(5)" class="rating-btn">🔥</button>
+                            </div>
+                            <input type="hidden" id="difficultyRating" name="difficultyRating">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Notes (optional)</label>
+                            <textarea id="workoutNotes" rows="2" 
+                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                                placeholder="How did it feel? Any achievements?"></textarea>
+                        </div>
+
+                        <div id="exerciseInputs">
+                            <!-- Exercise inputs will be dynamically added here -->
+                        </div>
+
+                        <button type="submit"
+                            class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transform transition-all duration-300 hover:scale-105">
+                            Complete Workout 🎉
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Progress Tab -->
+            <div id="progressContent" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Workout Stats Card -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Workout Stats</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="text-sm text-gray-500">Completion Rate</div>
+                                <div class="text-3xl font-bold text-purple-600">
+                                    <span id="completionRate">0</span>%
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div class="text-sm text-gray-500">Total</div>
+                                    <div class="text-2xl font-bold text-gray-800" id="totalWorkouts">0</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Completed</div>
+                                    <div class="text-2xl font-bold text-green-600" id="completedWorkouts">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Records Card -->
+                    <div class="bg-white p-6 rounded-xl shadow-md md:col-span-2">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Personal Records 🏆</h3>
+                        <div id="personalRecords" class="space-y-4">
+                            <!-- Personal records will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Workouts -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Recent Workouts</h3>
+                    <div id="recentWorkouts" class="space-y-4">
+                        <!-- Recent workouts will be inserted here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        let currentWorkoutId = null;
+        let currentUserId = null;
+
         document.getElementById('userForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -133,11 +241,15 @@
                 });
                 
                 const result = await response.json();
+                currentWorkoutId = result.workout_id;
+                currentUserId = result.user_id;
                 
                 // Update audio source
                 const audioPlayer = document.getElementById('workoutAudio');
-                audioPlayer.src = result.audio_url;
-                audioPlayer.load();
+                if (result.audio_url) {
+                    audioPlayer.src = result.audio_url;
+                    audioPlayer.load();
+                }
                 
                 // Display workout plan
                 const planContent = document.getElementById('planContent');
@@ -168,9 +280,47 @@
                         </div>
                     </div>
                 `;
+
+                // Create exercise inputs for completion form
+                const exerciseInputs = document.getElementById('exerciseInputs');
+                exerciseInputs.innerHTML = result.workout_plan.exercises.map(ex => `
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <h4 class="font-semibold text-purple-600 mb-2">${ex.name}</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Sets Completed</label>
+                                <input type="number" name="sets_${ex.name}" min="0" max="${ex.sets || 1}"
+                                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500">
+                            </div>
+                            ${ex.reps ? `
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Reps Completed</label>
+                                    <input type="number" name="reps_${ex.name}" min="0" max="${ex.reps}"
+                                        class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500">
+                                </div>
+                            ` : ''}
+                            ${!ex.duration ? `
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Weight (kg)</label>
+                                    <input type="number" name="weight_${ex.name}" step="0.5" min="0"
+                                        class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500">
+                                </div>
+                            ` : `
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Duration (minutes)</label>
+                                    <input type="number" name="duration_${ex.name}" min="0"
+                                        class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500">
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `).join('');
                 
                 document.getElementById('workoutPlan').classList.remove('hidden');
                 document.getElementById('workoutPlan').scrollIntoView({ behavior: 'smooth' });
+                
+                // Load initial progress data
+                loadProgressData();
                 
             } catch (error) {
                 console.error('Error:', error);
@@ -178,6 +328,149 @@
             } finally {
                 submitButton.disabled = false;
                 submitButton.innerHTML = 'Create My Personalized Plan';
+            }
+        });
+
+        // Tab switching
+        function switchTab(tab) {
+            const workoutTab = document.getElementById('workoutTab');
+            const progressTab = document.getElementById('progressTab');
+            const workoutContent = document.getElementById('workoutContent');
+            const progressContent = document.getElementById('progressContent');
+
+            if (tab === 'workout') {
+                workoutTab.classList.add('border-purple-600', 'text-purple-600');
+                workoutTab.classList.remove('border-transparent', 'text-gray-500');
+                progressTab.classList.remove('border-purple-600', 'text-purple-600');
+                progressTab.classList.add('border-transparent', 'text-gray-500');
+                workoutContent.classList.remove('hidden');
+                progressContent.classList.add('hidden');
+            } else {
+                progressTab.classList.add('border-purple-600', 'text-purple-600');
+                progressTab.classList.remove('border-transparent', 'text-gray-500');
+                workoutTab.classList.remove('border-purple-600', 'text-purple-600');
+                workoutTab.classList.add('border-transparent', 'text-gray-500');
+                progressContent.classList.remove('hidden');
+                workoutContent.classList.add('hidden');
+            }
+        }
+
+        // Rating functionality
+        function rateWorkout(rating) {
+            document.getElementById('difficultyRating').value = rating;
+            document.querySelectorAll('.rating-btn').forEach((btn, index) => {
+                btn.classList.toggle('opacity-50', index + 1 !== rating);
+            });
+        }
+
+        // Load progress data
+        async function loadProgressData() {
+            if (!currentUserId) return;
+
+            try {
+                const response = await fetch(`/users/${currentUserId}/progress`);
+                const data = await response.json();
+
+                // Update stats
+                document.getElementById('completionRate').textContent = Math.round(data.stats.completion_rate);
+                document.getElementById('totalWorkouts').textContent = data.stats.total_workouts;
+                document.getElementById('completedWorkouts').textContent = data.stats.completed_workouts;
+
+                // Update personal records
+                const prContent = document.getElementById('personalRecords');
+                prContent.innerHTML = data.personal_records.map(pr => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <div class="font-semibold text-purple-600">${pr.exercise}</div>
+                            <div class="text-sm text-gray-500">
+                                ${pr.type === 'weight' ? 'Weight: ' + pr.value + 'kg' : 
+                                  pr.type === 'reps' ? 'Reps: ' + pr.value : 
+                                  'Duration: ' + pr.value + 's'}
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            ${new Date(pr.achieved_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                `).join('') || '<p class="text-gray-500">No personal records yet. Complete a workout to set some!</p>';
+
+                // Update recent workouts
+                const recentContent = document.getElementById('recentWorkouts');
+                recentContent.innerHTML = data.recent_workouts.map(w => `
+                    <div class="flex items-center justify-between p-3 ${w.completed ? 'bg-green-50' : 'bg-gray-50'} rounded-lg">
+                        <div>
+                            <div class="font-semibold ${w.completed ? 'text-green-600' : 'text-gray-600'}">
+                                ${new Date(w.date).toLocaleDateString()}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                ${w.completed ? 
+                                    `Completed - Rating: ${'⭐'.repeat(w.difficulty_rating || 0)}` : 
+                                    'Not completed'}
+                            </div>
+                        </div>
+                        <div class="text-2xl">
+                            ${w.completed ? '✅' : '⏳'}
+                        </div>
+                    </div>
+                `).join('') || '<p class="text-gray-500">No workouts yet. Create one to get started!</p>';
+
+            } catch (error) {
+                console.error('Error loading progress:', error);
+            }
+        }
+
+        // Handle workout completion
+        document.getElementById('completionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="animate-pulse">Saving...</span>';
+            
+            const exerciseLogs = [];
+            const exercises = JSON.parse(document.getElementById('planContent').dataset.exercises);
+            
+            exercises.forEach(ex => {
+                const log = {
+                    exercise_name: ex.name,
+                    sets_completed: parseInt(document.querySelector(`input[name="sets_${ex.name}"]`).value) || 0,
+                    reps_completed: ex.reps ? parseInt(document.querySelector(`input[name="reps_${ex.name}"]`).value) || null : null,
+                    weight_used: !ex.duration ? parseFloat(document.querySelector(`input[name="weight_${ex.name}"]`).value) || null : null,
+                    duration: ex.duration ? parseInt(document.querySelector(`input[name="duration_${ex.name}"]`).value) * 60 || null : null
+                };
+                exerciseLogs.push(log);
+            });
+            
+            try {
+                const response = await fetch(`/workouts/${currentWorkoutId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        difficulty_rating: parseInt(document.getElementById('difficultyRating').value) || null,
+                        notes: document.getElementById('workoutNotes').value,
+                        exercise_logs: exerciseLogs
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to complete workout');
+                
+                // Show success message
+                alert('Workout completed successfully! 🎉');
+                
+                // Refresh progress data
+                loadProgressData();
+                
+                // Switch to progress tab
+                switchTab('progress');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('There was an error saving your workout. Please try again.');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Complete Workout 🎉';
             }
         });
     </script>
