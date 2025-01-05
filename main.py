@@ -95,7 +95,7 @@ workout_enhancer = WorkoutEnhancer(
 # Initialize services with optional features
 voice_generator = VoiceGenerator()
 workout_generator = WorkoutGenerator()
-spotify_player = SpotifyPlayer() if os.getenv("SPOTIFY_CLIENT_ID") else None
+spotify_player = SpotifyPlayer()
 
 # Dependency to get database session
 def get_db():
@@ -111,7 +111,7 @@ async def read_root(request: Request, db: Session = Depends(get_db)):
         "index.html",
         {
             "request": request,
-            "spotify_enabled": bool(os.getenv("SPOTIFY_CLIENT_ID")),
+            "spotify_enabled": spotify_player.spotify_available,
             "voice_enabled": voice_generator.elevenlabs_available
         }
     )
@@ -135,21 +135,34 @@ async def get_workout(user_id: int, db: Session = Depends(get_db)):
             "goals": user.goals
         })
         
-        # Generate audio for the new workout (optional)
-        audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
-        if audio_path:
-            workout_plan["audio_url"] = audio_path
+        # Add optional features
+        if voice_generator.elevenlabs_available:
+            audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
+            if audio_path:
+                workout_plan["audio_url"] = audio_path
+        
+        if spotify_player.spotify_available:
+            playlist = spotify_player.get_workout_playlist()
+            if playlist:
+                workout_plan["spotify_playlist"] = playlist
         
         return workout_plan
     
-    # Generate new audio for existing workout (optional)
+    # Return existing workout with optional features
     workout_plan = {
         "exercises": json.loads(workout.exercises),
         "motivation": workout_generator.generate_motivation_message(user.name)
     }
-    audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
-    if audio_path:
-        workout_plan["audio_url"] = audio_path
+    
+    if voice_generator.elevenlabs_available:
+        audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
+        if audio_path:
+            workout_plan["audio_url"] = audio_path
+    
+    if spotify_player.spotify_available:
+        playlist = spotify_player.get_workout_playlist()
+        if playlist:
+            workout_plan["spotify_playlist"] = playlist
     
     return workout_plan
 
