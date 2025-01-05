@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class WorkoutGenerator:
     def __init__(self):
@@ -46,15 +46,15 @@ class WorkoutGenerator:
         }}
         """
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
         try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}]
+            )
             workout_plan = json.loads(response.choices[0].message.content)
             return workout_plan
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"Error generating workout plan: {str(e)}")
             # Fallback to template-based workout if AI generation fails
             return self._generate_template_workout(user_info['fitness_level'])
 
@@ -89,9 +89,12 @@ class WorkoutGenerator:
         prompt = f"""Generate a motivational message for {user_name} who is about to start their workout.
         Make it personal, encouraging, and energetic. Keep it under 100 words."""
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        return response.choices[0].message.content
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"Error generating motivation: {str(e)}")
+            return "Let's crush this workout! Every rep brings you closer to your goals. 💪"

@@ -199,41 +199,33 @@ async def get_workout(user_id: int, db: Session = Depends(get_db)):
     try:
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            # Create a new user with default settings if none exists
+            user = User(
+                id=user_id,
+                name="User",
+                fitness_level="beginner",
+                goals="Get fit and healthy"
+            )
+            db.add(user)
+            db.commit()
 
-        # Get latest workout
-        workout = db.query(Workout).filter(
-            Workout.user_id == user_id
-        ).order_by(Workout.created_at.desc()).first()
+        # Generate a new workout plan
+        workout_plan = workout_generator.generate_workout_plan({
+            "name": user.name,
+            "fitness_level": user.fitness_level,
+            "goals": user.goals
+        })
 
-        if not workout:
-            # Generate new workout if none exists
-            workout_plan = workout_generator.generate_workout_plan({
-                "name": user.name,
-                "fitness_level": user.fitness_level,
-                "goals": user.goals
-            })
-            logger.info(f"Generated new workout plan for user {user_id}")
-
-            # Enhance workout with optional features
+        # Enhance the workout with music and voice features
+        if workout_enhancer:
+            workout_enhancer.db = db  # Set the database session
             enhanced_plan = await workout_enhancer.enhance_workout(workout_plan, user_id)
             return enhanced_plan
+        
+        return workout_plan
 
-        # Return existing workout with optional features
-        workout_plan = {
-            "exercises": json.loads(workout.exercises),
-            "motivation": workout_generator.generate_motivation_message(user.name)
-        }
-        logger.info(f"Retrieved existing workout plan for user {user_id}")
-
-        # Enhance workout with optional features
-        enhanced_plan = await workout_enhancer.enhance_workout(workout_plan, user_id)
-        return enhanced_plan
-
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"❌ Error getting workout for user {user_id}: {str(e)}")
+        logger.error(f"Error generating workout: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/users/")

@@ -25,14 +25,22 @@ if not DATABASE_URL:
     DATABASE_URL = "sqlite:///ai_trainer.db"
 
 # Create engine with connection pooling and timeout settings
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    connect_args={
-        'connect_timeout': 60
-    } if DATABASE_URL.startswith('postgresql://') else {}
-)
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL, 
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True,
+        pool_recycle=300
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args={
+            'connect_timeout': 60
+        }
+    )
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

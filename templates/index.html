@@ -287,8 +287,72 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             fetchGamificationStatus();
-            // Add your existing workout fetching logic here
+            fetchCurrentWorkout();
         });
+
+        // Fetch current workout
+        async function fetchCurrentWorkout() {
+            try {
+                const response = await fetch(`/users/${currentUser.id}/workout`);
+                const data = await response.json();
+                currentWorkout = data;
+                displayWorkout(data);
+            } catch (error) {
+                console.error('Error fetching workout:', error);
+                const workoutPlan = document.getElementById('workoutPlan');
+                workoutPlan.innerHTML = '<p class="text-red-500">Error loading workout. Please try again later.</p>';
+            }
+        }
+
+        // Display workout
+        function displayWorkout(workout) {
+            const workoutPlan = document.getElementById('workoutPlan');
+            if (!workout || !workout.exercises) {
+                workoutPlan.innerHTML = '<p class="text-gray-500">No workout available. Generate a new one!</p>';
+                return;
+            }
+
+            workoutPlan.innerHTML = `
+                <div class="mb-4">
+                    <h3 class="text-xl font-semibold">${workout.type} Workout</h3>
+                    <p class="text-gray-600">${workout.description || ''}</p>
+                </div>
+                <div class="space-y-4">
+                    ${workout.exercises.map((exercise, index) => `
+                        <div class="exercise-card bg-gray-50 p-4 rounded-lg">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-semibold">${index + 1}. ${exercise.name}</h4>
+                                <span class="text-indigo-600">${formatExerciseMetrics(exercise)}</span>
+                            </div>
+                            <p class="text-gray-600 mt-2">${exercise.instructions || ''}</p>
+                            ${exercise.tips ? `<p class="text-indigo-600 mt-2">💡 ${exercise.tips}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+                ${workout.playlist ? `
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-semibold">🎵 Workout Playlist</h4>
+                        <a href="${workout.playlist.url}" target="_blank" class="text-indigo-600 hover:underline">
+                            ${workout.playlist.name}
+                        </a>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        // Format exercise metrics (sets, reps, duration)
+        function formatExerciseMetrics(exercise) {
+            if (exercise.duration) {
+                return `${exercise.duration} seconds`;
+            }
+            if (exercise.sets && exercise.reps) {
+                return `${exercise.sets} sets × ${exercise.reps} reps`;
+            }
+            if (exercise.distance) {
+                return `${exercise.distance} ${exercise.distance_unit || 'meters'}`;
+            }
+            return '';
+        }
     </script>
 </body>
 </html>
