@@ -59,7 +59,12 @@
             <!-- Left Column -->
             <div class="w-full md:w-2/3">
                 <div class="bg-white rounded-lg shadow-lg p-6 mb-4">
-                    <h2 class="text-2xl font-bold mb-4">Current Workout</h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Current Workout</h2>
+                        <button id="generateWorkout" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full">
+                            Generate New Workout 💪
+                        </button>
+                    </div>
                     <div id="workoutPlan" class="space-y-4">
                         <!-- Workout content will be injected here -->
                     </div>
@@ -241,12 +246,22 @@
         // Handle workout completion
         document.getElementById('workoutForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!currentWorkout) return;
+            
+            if (!currentWorkout || !currentWorkout.id) {
+                console.error('No active workout to complete');
+                return;
+            }
+
+            const rating = document.querySelector('.rating-btn.selected')?.dataset.rating;
+            if (!rating) {
+                alert('Please rate your workout before completing it!');
+                return;
+            }
 
             const formData = {
-                difficulty_rating: parseInt(document.querySelector('.rating-btn.selected')?.dataset.rating || '3'),
+                difficulty_rating: parseInt(rating),
                 notes: document.getElementById('workoutNotes').value,
-                exercise_logs: [] // Add exercise logs based on your workout structure
+                exercise_logs: []  // We'll use the stored workout data on the backend
             };
 
             try {
@@ -256,10 +271,23 @@
                     body: JSON.stringify(formData)
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const data = await response.json();
                 
-                // Show completion celebration
-                if (data.new_achievements.length > 0) {
+                // Show success message
+                const workoutPlan = document.getElementById('workoutPlan');
+                workoutPlan.innerHTML = `
+                    <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4">
+                        <p class="font-bold">Workout Completed! 🎉</p>
+                        <p>You earned ${data.points_earned} points!</p>
+                    </div>
+                `;
+
+                // Show achievement if earned
+                if (data.new_achievements && data.new_achievements.length > 0) {
                     const achievement = data.new_achievements[0];
                     showMeme(achievement.meme_url, achievement.name, achievement.description);
                 }
@@ -269,10 +297,11 @@
 
                 // Clear form
                 document.getElementById('workoutNotes').value = '';
-                document.querySelectorAll('.rating-btn').forEach(btn => btn.classList.remove('selected'));
+                document.querySelectorAll('.rating-btn').forEach(btn => btn.classList.remove('selected', 'bg-indigo-600', 'text-white'));
 
             } catch (error) {
                 console.error('Error completing workout:', error);
+                alert('Failed to complete workout. Please try again.');
             }
         });
 
@@ -284,16 +313,21 @@
             });
         });
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchGamificationStatus();
-            fetchCurrentWorkout();
-        });
-
         // Fetch current workout
         async function fetchCurrentWorkout() {
             try {
+                const workoutPlan = document.getElementById('workoutPlan');
+                workoutPlan.innerHTML = `
+                    <div class="flex items-center justify-center p-4">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    </div>
+                `;
+                
                 const response = await fetch(`/users/${currentUser.id}/workout`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
                 currentWorkout = data;
                 displayWorkout(data);
@@ -304,55 +338,57 @@
             }
         }
 
-        // Display workout
+        // Display workout in the UI
         function displayWorkout(workout) {
             const workoutPlan = document.getElementById('workoutPlan');
+            
             if (!workout || !workout.exercises) {
                 workoutPlan.innerHTML = '<p class="text-gray-500">No workout available. Generate a new one!</p>';
                 return;
             }
 
-            workoutPlan.innerHTML = `
-                <div class="mb-4">
-                    <h3 class="text-xl font-semibold">${workout.type} Workout</h3>
-                    <p class="text-gray-600">${workout.description || ''}</p>
-                </div>
-                <div class="space-y-4">
-                    ${workout.exercises.map((exercise, index) => `
-                        <div class="exercise-card bg-gray-50 p-4 rounded-lg">
-                            <div class="flex justify-between items-center">
-                                <h4 class="font-semibold">${index + 1}. ${exercise.name}</h4>
-                                <span class="text-indigo-600">${formatExerciseMetrics(exercise)}</span>
-                            </div>
-                            <p class="text-gray-600 mt-2">${exercise.instructions || ''}</p>
-                            ${exercise.tips ? `<p class="text-indigo-600 mt-2">💡 ${exercise.tips}</p>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-                ${workout.playlist ? `
-                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                        <h4 class="font-semibold">🎵 Workout Playlist</h4>
-                        <a href="${workout.playlist.url}" target="_blank" class="text-indigo-600 hover:underline">
-                            ${workout.playlist.name}
-                        </a>
+            let html = '';
+            
+            // Add motivation message if available
+            if (workout.motivation) {
+                html += `
+                    <div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-4 rounded-lg mb-4">
+                        <p class="text-lg font-bold">💪 Motivation</p>
+                        <p>${workout.motivation}</p>
                     </div>
-                ` : ''}
-            `;
+                `;
+            }
+
+            // Add exercises
+            html += '<div class="space-y-4">';
+            workout.exercises.forEach((exercise, index) => {
+                html += `
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold">${index + 1}. ${exercise.name}</h3>
+                            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">
+                                ${exercise.sets} sets × ${exercise.reps} reps
+                            </span>
+                        </div>
+                        ${exercise.rest ? `<p class="text-gray-600 mt-2">Rest: ${exercise.rest}</p>` : ''}
+                        ${exercise.duration ? `<p class="text-gray-600 mt-2">Duration: ${exercise.duration}</p>` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            workoutPlan.innerHTML = html;
         }
 
-        // Format exercise metrics (sets, reps, duration)
-        function formatExerciseMetrics(exercise) {
-            if (exercise.duration) {
-                return `${exercise.duration} seconds`;
-            }
-            if (exercise.sets && exercise.reps) {
-                return `${exercise.sets} sets × ${exercise.reps} reps`;
-            }
-            if (exercise.distance) {
-                return `${exercise.distance} ${exercise.distance_unit || 'meters'}`;
-            }
-            return '';
-        }
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchCurrentWorkout();
+            
+            // Add click handler for generate workout button
+            document.getElementById('generateWorkout').addEventListener('click', () => {
+                fetchCurrentWorkout();
+            });
+        });
     </script>
 </body>
 </html>
