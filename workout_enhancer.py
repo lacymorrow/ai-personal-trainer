@@ -2,18 +2,19 @@ import json
 import random
 from typing import Dict, List, Optional, Any
 import openai
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-from elevenlabs import generate, set_api_key
-from models import User, AIMotivator, MotivationalMessage, SoundtrackPreference, Workout
 import os
+from models import User, AIMotivator, MotivationalMessage, SoundtrackPreference, Workout
 
 class WorkoutEnhancer:
     def __init__(self, db_session, elevenlabs_api_key: Optional[str] = None, spotify_client_id: Optional[str] = None, spotify_client_secret: Optional[str] = None):
         self.db = db_session
         self.elevenlabs_api_key = elevenlabs_api_key
         if self.elevenlabs_api_key:
-            set_api_key(self.elevenlabs_api_key)
+            try:
+                from elevenlabs import generate, set_api_key
+                set_api_key(self.elevenlabs_api_key)
+            except Exception as e:
+                print(f"⚠️ ElevenLabs initialization failed: {str(e)}")
         
         self.spotify_credentials = None
         if spotify_client_id and spotify_client_secret:
@@ -47,8 +48,6 @@ class WorkoutEnhancer:
         # Initialize ElevenLabs if API key is provided
         if elevenlabs_api_key:
             try:
-                from elevenlabs import generate, set_api_key
-                set_api_key(elevenlabs_api_key)
                 self.generate_voice = generate
                 self.elevenlabs_available = True
                 print("✅ ElevenLabs initialized successfully")

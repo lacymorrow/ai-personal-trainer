@@ -17,7 +17,7 @@ from workout_generator import WorkoutGenerator
 from voice_generator import VoiceGenerator
 from spotify_player import SpotifyPlayer
 from database import engine, SessionLocal
-from workout_enhancer import EnhancedWorkoutEnhancer
+from workout_enhancer import WorkoutEnhancer
 
 # Load environment variables
 load_dotenv()
@@ -85,7 +85,7 @@ app.add_middleware(
 templates = Jinja2Templates(directory="templates")
 
 # Initialize enhancer with optional credentials
-workout_enhancer = EnhancedWorkoutEnhancer(
+workout_enhancer = WorkoutEnhancer(
     spotify_client_id=os.getenv("SPOTIFY_CLIENT_ID"),
     spotify_client_secret=os.getenv("SPOTIFY_CLIENT_SECRET")
 )
