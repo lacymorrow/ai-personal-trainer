@@ -1,67 +1,102 @@
 #!/usr/bin/env python3
 import os
+import sys
+import logging
 from database_utils import DatabaseManager
 from models import Base
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 def init_production_db():
     """Initialize the production database on Railway"""
-    load_dotenv()
-    
-    # Get database URL
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        print("❌ Error: DATABASE_URL not found in environment")
-        return False
-    
-    # Handle Railway's Postgres URL format
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    
     try:
-        # Create engine
-        engine = create_engine(database_url)
+        load_dotenv()
         
-        # Create all tables
-        Base.metadata.create_all(engine)
-        print("✅ Database tables created successfully!")
+        # Get database URL
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            logger.error("❌ DATABASE_URL not found in environment")
+            return False
         
-        # Verify connection
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-            print("✅ Database connection verified!")
+        logger.info(f"🔌 Using database: {database_url[:20]}...")
         
-        # Initialize database manager
-        db_manager = DatabaseManager(database_url=database_url)
+        # Handle Railway's Postgres URL format
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+            logger.info("✅ Converted postgres:// to postgresql://")
         
-        # Load sample data if this is a fresh deployment
-        result = engine.execute(text("SELECT COUNT(*) FROM users"))
-        if result.scalar() == 0:
-            print("🔄 Loading sample data...")
-            db_manager.load_sample_data()
-        
-        # Run health check
-        health = db_manager.health_check()
-        if health['status'] == 'healthy':
-            print("✅ Database health check passed!")
-            print("\n📊 Table Statistics:")
-            for table, count in health['table_stats'].items():
-                print(f"  {table}: {count} records")
-        else:
-            print(f"❌ Database health check failed: {health.get('error')}")
-        
-        return True
-        
+        try:
+            # Create engine with extended timeout
+            engine = create_engine(
+                database_url,
+                pool_pre_ping=True,
+                pool_recycle=300,
+                connect_args={
+                    'connect_timeout': 60
+                }
+            )
+            logger.info("✅ Database engine created")
+            
+            # Test connection before creating tables
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                logger.info("✅ Initial database connection verified")
+            
+            # Create all tables
+            Base.metadata.create_all(engine)
+            logger.info("✅ Database tables created successfully")
+            
+            # Initialize database manager
+            db_manager = DatabaseManager(database_url=database_url)
+            logger.info("✅ Database manager initialized")
+            
+            # Check if this is a fresh deployment
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT COUNT(*) FROM users"))
+                user_count = result.scalar()
+                logger.info(f"📊 Current user count: {user_count}")
+                
+                if user_count == 0:
+                    logger.info("🔄 Loading sample data for fresh deployment...")
+                    db_manager.load_sample_data()
+                    logger.info("✅ Sample data loaded successfully")
+            
+            # Run health check
+            health = db_manager.health_check()
+            if health['status'] == 'healthy':
+                logger.info("✅ Database health check passed!")
+                logger.info("\n📊 Table Statistics:")
+                for table, count in health['table_stats'].items():
+                    logger.info(f"  {table}: {count} records")
+                return True
+            else:
+                logger.error(f"❌ Database health check failed: {health.get('error', 'Unknown error')}")
+                return False
+                
+        except SQLAlchemyError as e:
+            logger.error(f"❌ Database error: {str(e)}")
+            return False
+            
     except Exception as e:
-        print(f"❌ Error initializing production database: {str(e)}")
+        logger.error(f"❌ Deployment error: {str(e)}")
         return False
 
 if __name__ == "__main__":
-    print("🚀 Initializing production database...")
+    logger.info("🚀 Starting production database initialization...")
     success = init_production_db()
+    
     if success:
-        print("\n✨ Production database initialized successfully!")
+        logger.info("✅ Production database initialization completed successfully!")
+        sys.exit(0)
     else:
-        print("\n❌ Failed to initialize production database")
-        exit(1)
+        logger.error("❌ Production database initialization failed!")
+        sys.exit(1)
