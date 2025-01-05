@@ -12,9 +12,10 @@ import os
 from dotenv import load_dotenv
 from gamification import GamificationManager
 
-from models import Base, User, Workout, ExerciseLog, PersonalRecord
+from models import Base, User, Workout, ExerciseLog, PersonalRecord, Streak, Achievement, Challenge, ChallengeParticipant
 from workout_generator import WorkoutGenerator
 from voice_generator import VoiceGenerator
+from spotify_player import SpotifyPlayer
 from database import engine, SessionLocal
 from workout_enhancer import WorkoutEnhancer
 
@@ -91,9 +92,10 @@ workout_enhancer = WorkoutEnhancer(
     spotify_client_secret=os.getenv("SPOTIFY_CLIENT_SECRET")
 )
 
-# Initialize services
-workout_generator = WorkoutGenerator()
+# Initialize services with optional features
 voice_generator = VoiceGenerator()
+workout_generator = WorkoutGenerator()
+spotify_player = SpotifyPlayer() if os.getenv("SPOTIFY_CLIENT_ID") else None
 
 # Dependency to get database session
 def get_db():
@@ -110,7 +112,7 @@ async def read_root(request: Request, db: Session = Depends(get_db)):
         {
             "request": request,
             "spotify_enabled": bool(os.getenv("SPOTIFY_CLIENT_ID")),
-            "voice_enabled": bool(os.getenv("ELEVENLABS_API_KEY"))
+            "voice_enabled": voice_generator.elevenlabs_available
         }
     )
 
