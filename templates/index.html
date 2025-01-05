@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Personal Trainer</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
     <style>
         @keyframes pulse-border {
             0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
@@ -126,6 +126,33 @@
                         <!-- Achievement cards will be injected here -->
                     </div>
                 </div>
+
+                <!-- Motivation Section -->
+                <div id="motivationSection" class="mb-8">
+                    <h2 class="text-2xl font-bold mb-4">Motivation</h2>
+                    <div id="motivationContent" class="p-4 bg-gray-50 rounded-lg">
+                        <!-- Motivation content will be loaded here -->
+                    </div>
+                    {% if voice_enabled %}
+                    <div id="voiceControls" class="mt-4">
+                        <button id="playMotivation" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            Play Motivation
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Music Section -->
+                {% if spotify_enabled %}
+                <div id="musicSection" class="mb-8">
+                    <h2 class="text-2xl font-bold mb-4">Workout Music</h2>
+                    <div id="spotifyPlayer" class="p-4 bg-gray-50 rounded-lg">
+                        <button id="createPlaylist" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                            Create Workout Playlist
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

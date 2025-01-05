@@ -16,6 +16,7 @@ from models import Base, User, Workout, ExerciseLog, PersonalRecord
 from workout_generator import WorkoutGenerator
 from voice_generator import VoiceGenerator
 from database import engine, SessionLocal
+from workout_enhancer import WorkoutEnhancer
 
 # Load environment variables
 load_dotenv()
@@ -79,6 +80,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize templates
+templates = Jinja2Templates(directory="templates")
+
+# Initialize enhancer with optional credentials
+workout_enhancer = WorkoutEnhancer(
+    db_session=SessionLocal(),
+    elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY"),
+    spotify_client_id=os.getenv("SPOTIFY_CLIENT_ID"),
+    spotify_client_secret=os.getenv("SPOTIFY_CLIENT_SECRET")
+)
+
 # Initialize services
 workout_generator = WorkoutGenerator()
 voice_generator = VoiceGenerator()
@@ -92,10 +104,53 @@ def get_db():
         db.close()
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    with open("static/index.html", "r") as f:
-        html_content = f.read()
-    return HTMLResponse(content=html_content)
+async def read_root(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "spotify_enabled": bool(os.getenv("SPOTIFY_CLIENT_ID")),
+            "voice_enabled": bool(os.getenv("ELEVENLABS_API_KEY"))
+        }
+    )
+
+@app.get("/users/{user_id}/workout")
+async def get_workout(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get latest workout
+    workout = db.query(Workout).filter(
+        Workout.user_id == user_id
+    ).order_by(Workout.date.desc()).first()
+    
+    if not workout:
+        # Generate new workout if none exists
+        workout_plan = workout_generator.generate_workout_plan({
+            "name": user.name,
+            "fitness_level": user.fitness_level,
+            "goals": user.goals
+        })
+        
+        # Generate audio for the new workout
+        audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
+        workout_plan["audio_url"] = audio_path
+        
+        return workout_plan
+    
+    # Generate new audio for existing workout
+    workout_plan = {
+        "exercises": json.loads(workout.exercises),
+        "motivation": workout_generator.generate_motivation_message(user.name)
+    }
+    audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
+    
+    return {
+        "exercises": workout_plan["exercises"],
+        "motivation": workout_plan["motivation"],
+        "audio_url": audio_path
+    }
 
 @app.post("/users/")
 async def create_user(
@@ -136,44 +191,6 @@ async def create_user(
         "message": "User created successfully",
         "user_id": db_user.id,
         "workout_plan": workout_plan,
-        "audio_url": audio_path
-    }
-
-@app.get("/users/{user_id}/workout")
-async def get_workout(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Get latest workout
-    workout = db.query(Workout).filter(
-        Workout.user_id == user_id
-    ).order_by(Workout.date.desc()).first()
-    
-    if not workout:
-        # Generate new workout if none exists
-        workout_plan = workout_generator.generate_workout_plan({
-            "name": user.name,
-            "fitness_level": user.fitness_level,
-            "goals": user.goals
-        })
-        
-        # Generate audio for the new workout
-        audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
-        workout_plan["audio_url"] = audio_path
-        
-        return workout_plan
-    
-    # Generate new audio for existing workout
-    workout_plan = {
-        "exercises": json.loads(workout.exercises),
-        "motivation": workout_generator.generate_motivation_message(user.name)
-    }
-    audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
-    
-    return {
-        "exercises": workout_plan["exercises"],
-        "motivation": workout_plan["motivation"],
         "audio_url": audio_path
     }
 

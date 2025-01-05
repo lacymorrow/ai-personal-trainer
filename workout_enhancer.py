@@ -1,21 +1,27 @@
 import json
 import random
-from typing import Dict, List
+from typing import Dict, List, Optional
 import openai
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from elevenlabs import generate, set_api_key
 from models import User, AIMotivator, MotivationalMessage, SoundtrackPreference, Workout
+import os
 
 class WorkoutEnhancer:
-    def __init__(self, db_session, elevenlabs_api_key: str, spotify_client_id: str, spotify_client_secret: str):
+    def __init__(self, db_session, elevenlabs_api_key: Optional[str] = None, spotify_client_id: Optional[str] = None, spotify_client_secret: Optional[str] = None):
         self.db = db_session
-        set_api_key(elevenlabs_api_key)
-        self.spotify_credentials = {
-            "client_id": spotify_client_id,
-            "client_secret": spotify_client_secret,
-            "redirect_uri": "http://localhost:8000/callback"
-        }
+        self.elevenlabs_api_key = elevenlabs_api_key
+        if self.elevenlabs_api_key:
+            set_api_key(self.elevenlabs_api_key)
+        
+        self.spotify_credentials = None
+        if spotify_client_id and spotify_client_secret:
+            self.spotify_credentials = {
+                "client_id": spotify_client_id,
+                "client_secret": spotify_client_secret,
+                "redirect_uri": "http://localhost:8000/callback"
+            }
 
     async def generate_motivational_message(self, user_id: int, message_type: str) -> Dict:
         """Generate a personalized motivational message using AI"""
@@ -48,17 +54,17 @@ class WorkoutEnhancer:
         )
         message_content = response.choices[0].message.content
 
-        # Generate audio using ElevenLabs
-        audio = generate(
-            text=message_content,
-            voice=motivator.voice_id,
-            model="eleven_monolingual_v1"
-        )
-
-        # Save audio file
-        audio_filename = f"static/audio/motivation_{user_id}_{message_type}_{random.randint(1000, 9999)}.mp3"
-        with open(audio_filename, "wb") as f:
-            f.write(audio)
+        # Generate audio using ElevenLabs if available
+        audio_filename = None
+        if self.elevenlabs_api_key:
+            audio = generate(
+                text=message_content,
+                voice=motivator.voice_id,
+                model="eleven_monolingual_v1"
+            )
+            audio_filename = f"static/audio/motivation_{user_id}_{message_type}_{random.randint(1000, 9999)}.mp3"
+            with open(audio_filename, "wb") as f:
+                f.write(audio)
 
         # Save message to database
         message = MotivationalMessage(
@@ -99,8 +105,11 @@ class WorkoutEnhancer:
         }
         return prompts.get(message_type, prompts["pre_workout"])
 
-    async def create_workout_playlist(self, user_id: int, workout_intensity: str) -> str:
+    async def create_workout_playlist(self, user_id: int, workout_intensity: str) -> Optional[str]:
         """Create a personalized Spotify playlist for the workout"""
+        if not self.spotify_credentials:
+            return None
+
         user = self.db.query(User).get(user_id)
         if not user.spotify_connected:
             return None
