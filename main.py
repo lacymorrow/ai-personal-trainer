@@ -123,7 +123,7 @@ async def get_workout(user_id: int, db: Session = Depends(get_db)):
     # Get latest workout
     workout = db.query(Workout).filter(
         Workout.user_id == user_id
-    ).order_by(Workout.date.desc()).first()
+    ).order_by(Workout.created_at.desc()).first()
     
     if not workout:
         # Generate new workout if none exists
@@ -133,24 +133,23 @@ async def get_workout(user_id: int, db: Session = Depends(get_db)):
             "goals": user.goals
         })
         
-        # Generate audio for the new workout
+        # Generate audio for the new workout (optional)
         audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
-        workout_plan["audio_url"] = audio_path
+        if audio_path:
+            workout_plan["audio_url"] = audio_path
         
         return workout_plan
     
-    # Generate new audio for existing workout
+    # Generate new audio for existing workout (optional)
     workout_plan = {
         "exercises": json.loads(workout.exercises),
         "motivation": workout_generator.generate_motivation_message(user.name)
     }
     audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
+    if audio_path:
+        workout_plan["audio_url"] = audio_path
     
-    return {
-        "exercises": workout_plan["exercises"],
-        "motivation": workout_plan["motivation"],
-        "audio_url": audio_path
-    }
+    return workout_plan
 
 @app.post("/users/")
 async def create_user(
