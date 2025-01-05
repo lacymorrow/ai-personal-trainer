@@ -6,7 +6,7 @@ import os
 from models import User, AIMotivator, MotivationalMessage, SoundtrackPreference, Workout
 
 class WorkoutEnhancer:
-    def __init__(self, db_session, elevenlabs_api_key: Optional[str] = None, spotify_client_id: Optional[str] = None, spotify_client_secret: Optional[str] = None):
+    def __init__(self, db_session=None, elevenlabs_api_key: Optional[str] = None, spotify_client_id: Optional[str] = None, spotify_client_secret: Optional[str] = None):
         self.db = db_session
         self.elevenlabs_api_key = elevenlabs_api_key
         if self.elevenlabs_api_key:
@@ -56,6 +56,9 @@ class WorkoutEnhancer:
 
     async def generate_motivational_message(self, user_id: int, message_type: str) -> Dict:
         """Generate a personalized motivational message using AI"""
+        if not self.db:
+            raise Exception("Database session is required for this operation")
+        
         user = self.db.query(User).get(user_id)
         motivator = self.db.query(AIMotivator).filter(AIMotivator.user_id == user_id).first()
 
@@ -114,6 +117,9 @@ class WorkoutEnhancer:
 
     def _get_user_context(self, user: User) -> Dict:
         """Get relevant user context for personalized motivation"""
+        if not self.db:
+            raise Exception("Database session is required for this operation")
+        
         streak = self.db.query("Streak").filter_by(user_id=user.id).first()
         recent_prs = self.db.query("PersonalRecord").filter_by(user_id=user.id)\
             .order_by("created_at desc").limit(3).all()
@@ -138,6 +144,9 @@ class WorkoutEnhancer:
 
     async def create_workout_playlist(self, user_id: int, workout_intensity: str) -> Optional[str]:
         """Create a personalized Spotify playlist for the workout"""
+        if not self.db:
+            raise Exception("Database session is required for this operation")
+        
         if not self.spotify_credentials:
             return None
 
@@ -191,6 +200,9 @@ class WorkoutEnhancer:
 
     async def customize_ai_motivator(self, user_id: int, personality: str, voice_id: str, catchphrase: str) -> Dict:
         """Customize the user's AI motivator personality"""
+        if not self.db:
+            raise Exception("Database session is required for this operation")
+        
         motivator = self.db.query(AIMotivator).filter(AIMotivator.user_id == user_id).first()
         
         if not motivator:
@@ -217,6 +229,9 @@ class WorkoutEnhancer:
         bpm_range: Dict[str, int]
     ) -> Dict:
         """Update user's workout soundtrack preferences"""
+        if not self.db:
+            raise Exception("Database session is required for this operation")
+        
         prefs = self.db.query(SoundtrackPreference).filter_by(user_id=user_id).first()
         
         if not prefs:
@@ -237,6 +252,9 @@ class WorkoutEnhancer:
 
     async def enhance_workout(self, workout_plan: Dict[str, Any], user_id: int) -> Dict[str, Any]:
         """Enhance workout with music and voice features if available"""
+        if not self.db:
+            raise Exception("Database session is required for this operation")
+        
         enhanced_plan = workout_plan.copy()
         
         # Add Spotify playlist if available
@@ -261,6 +279,9 @@ class WorkoutEnhancer:
 
     def _get_workout_playlist(self, workout_type: str = "workout") -> Optional[Dict[str, Any]]:
         """Get a workout playlist if Spotify is available"""
+        if not self.db:
+            raise Exception("Database session is required for this operation")
+        
         if not self.spotify_available:
             return None
 
@@ -286,6 +307,9 @@ class WorkoutEnhancer:
 
     def _generate_workout_audio(self, workout_plan: Dict[str, Any], user_id: int) -> Optional[str]:
         """Generate voice guidance if ElevenLabs is available"""
+        if not self.db:
+            raise Exception("Database session is required for this operation")
+        
         if not self.elevenlabs_available:
             return None
 

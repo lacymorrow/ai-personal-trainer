@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         logger.info("🚀 Starting up application...")
-        
+
         # Initialize components
         global workout_generator, voice_generator, spotify_player, workout_enhancer
         workout_generator = WorkoutGenerator()
@@ -56,11 +56,11 @@ async def lifespan(app: FastAPI):
             spotify_client_secret=os.getenv("SPOTIFY_CLIENT_SECRET")
         )
         logger.info("✅ Components initialized successfully")
-        
+
         # Create static directories if they don't exist
         os.makedirs("static/audio", exist_ok=True)
         logger.info("✅ Static directories created")
-        
+
         # Create database tables
         try:
             Base.metadata.create_all(bind=engine)
@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"❌ Error creating database tables: {str(e)}")
             raise
-        
+
         yield
     except Exception as e:
         logger.error(f"❌ Startup error: {str(e)}")
@@ -156,7 +156,7 @@ async def health_check():
         db = SessionLocal()
         db.execute("SELECT 1")
         db.close()
-        
+
         return {
             "status": "healthy",
             "database": "connected",
@@ -200,12 +200,12 @@ async def get_workout(user_id: int, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         # Get latest workout
         workout = db.query(Workout).filter(
             Workout.user_id == user_id
         ).order_by(Workout.created_at.desc()).first()
-        
+
         if not workout:
             # Generate new workout if none exists
             workout_plan = workout_generator.generate_workout_plan({
@@ -214,22 +214,22 @@ async def get_workout(user_id: int, db: Session = Depends(get_db)):
                 "goals": user.goals
             })
             logger.info(f"Generated new workout plan for user {user_id}")
-            
+
             # Enhance workout with optional features
             enhanced_plan = await workout_enhancer.enhance_workout(workout_plan, user_id)
             return enhanced_plan
-        
+
         # Return existing workout with optional features
         workout_plan = {
             "exercises": json.loads(workout.exercises),
             "motivation": workout_generator.generate_motivation_message(user.name)
         }
         logger.info(f"Retrieved existing workout plan for user {user_id}")
-        
+
         # Enhance workout with optional features
         enhanced_plan = await workout_enhancer.enhance_workout(workout_plan, user_id)
         return enhanced_plan
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -288,14 +288,14 @@ async def complete_workout(user_id: int, feedback: str = None, db: Session = Dep
         workout = db.query(Workout).filter(
             Workout.user_id == user_id
         ).order_by(Workout.date.desc()).first()
-        
+
         if not workout:
             raise HTTPException(status_code=404, detail="No workout found")
-        
+
         workout.completed = "completed"
         workout.feedback = feedback
         db.commit()
-        
+
         return {"message": "Workout marked as completed"}
     except HTTPException:
         raise
@@ -310,7 +310,7 @@ async def get_user_gamification(user_id: int, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         # Get streak info
         streak = db.query(Streak).filter(Streak.user_id == user_id).first()
         streak_info = {
@@ -318,18 +318,18 @@ async def get_user_gamification(user_id: int, db: Session = Depends(get_db)):
             "longest_streak": streak.longest_streak if streak else 0,
             "streak_multiplier": streak.streak_multiplier if streak else 1.0
         }
-        
+
         # Get achievements
         achievements = db.query(Achievement).filter(
             Achievement.user_id == user_id
         ).order_by(Achievement.unlocked_at.desc()).all()
-        
+
         # Get active challenges
         now = datetime.utcnow()
         active_challenges = db.query(Challenge).filter(
             Challenge.end_date > now
         ).all()
-        
+
         # Get user's progress in active challenges
         challenge_responses = []
         for challenge in active_challenges:
@@ -337,7 +337,7 @@ async def get_user_gamification(user_id: int, db: Session = Depends(get_db)):
                 ChallengeParticipant.challenge_id == challenge.id,
                 ChallengeParticipant.user_id == user_id
             ).first()
-            
+
             challenge_responses.append({
                 "id": challenge.id,
                 "name": challenge.name,
@@ -348,7 +348,7 @@ async def get_user_gamification(user_id: int, db: Session = Depends(get_db)):
                 "completed": participant.completed if participant else False,
                 "end_date": challenge.end_date
             })
-        
+
         return {
             "level": user.level,
             "title": user.title,
@@ -384,10 +384,10 @@ async def join_challenge(
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         gamification = GamificationManager(db)
         participant = await gamification.join_challenge(user, challenge_id)
-        
+
         return {"message": "Successfully joined challenge"}
     except HTTPException:
         raise
@@ -407,13 +407,13 @@ async def update_challenge_progress(
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         gamification = GamificationManager(db)
         result = await gamification.update_challenge_progress(user, challenge_id, value)
-        
+
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
-        
+
         return result
     except HTTPException:
         raise
@@ -431,16 +431,16 @@ async def complete_workout(
         workout = db.query(Workout).filter(Workout.id == workout_id).first()
         if not workout:
             raise HTTPException(status_code=404, detail="Workout not found")
-        
+
         # Update workout completion
         workout.completed = True
         workout.completion_date = datetime.utcnow()
         workout.difficulty_rating = workout_data.difficulty_rating
         workout.notes = workout_data.notes
-        
+
         # Initialize gamification manager
         gamification = GamificationManager(db)
-        
+
         # Log exercises and check for PRs
         for log_data in workout_data.exercise_logs:
             exercise_log = ExerciseLog(
@@ -453,7 +453,7 @@ async def complete_workout(
                 completed=True
             )
             db.add(exercise_log)
-            
+
             # Check for PRs and award achievements
             if log_data.weight_used:
                 existing_pr = db.query(PersonalRecord).filter(
@@ -461,7 +461,7 @@ async def complete_workout(
                     PersonalRecord.exercise_name == log_data.exercise_name,
                     PersonalRecord.record_type == "weight"
                 ).order_by(PersonalRecord.value.desc()).first()
-                
+
                 if not existing_pr or log_data.weight_used > existing_pr.value:
                     new_pr = PersonalRecord(
                         user_id=workout.user_id,
@@ -470,18 +470,18 @@ async def complete_workout(
                         value=log_data.weight_used
                     )
                     db.add(new_pr)
-                    
+
                     # Award points for new PR
                     user = db.query(User).get(workout.user_id)
                     user.total_points += 50  # Base points for PR
-            
+
             if log_data.reps_completed:
                 existing_pr = db.query(PersonalRecord).filter(
                     PersonalRecord.user_id == workout.user_id,
                     PersonalRecord.exercise_name == log_data.exercise_name,
                     PersonalRecord.record_type == "reps"
                 ).order_by(PersonalRecord.value.desc()).first()
-                
+
                 if not existing_pr or log_data.reps_completed > existing_pr.value:
                     new_pr = PersonalRecord(
                         user_id=workout.user_id,
@@ -490,23 +490,23 @@ async def complete_workout(
                         value=log_data.reps_completed
                     )
                     db.add(new_pr)
-                    
+
                     # Award points for new PR
                     user = db.query(User).get(workout.user_id)
                     user.total_points += 50  # Base points for PR
-        
+
         # Update streak and get new achievements
         user = db.query(User).get(workout.user_id)
         streak_info = await gamification.update_streak(user)
         new_achievements = await gamification.check_and_award_achievements(user)
-        
+
         # Award base points for completing workout
         base_points = 100  # Base points for workout completion
         bonus_points = int(base_points * streak_info["multiplier"])  # Apply streak multiplier
         user.total_points += bonus_points
-        
+
         db.commit()
-        
+
         return {
             "message": "Workout completed successfully",
             "points_earned": bonus_points,
@@ -533,24 +533,24 @@ async def get_user_progress(user_id: int, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         # Get workout completion stats
         total_workouts = db.query(Workout).filter(Workout.user_id == user_id).count()
         completed_workouts = db.query(Workout).filter(
             Workout.user_id == user_id,
             Workout.completed == True
         ).count()
-        
+
         # Get personal records
         personal_records = db.query(PersonalRecord).filter(
             PersonalRecord.user_id == user_id
         ).order_by(PersonalRecord.achieved_at.desc()).all()
-        
+
         # Get recent workouts
         recent_workouts = db.query(Workout).filter(
             Workout.user_id == user_id
         ).order_by(Workout.created_at.desc()).limit(5).all()
-        
+
         return {
             "stats": {
                 "total_workouts": total_workouts,
