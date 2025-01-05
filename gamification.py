@@ -9,16 +9,16 @@ ACHIEVEMENTS = {
         {
             "name": "No Cap Streak",
             "description": "7-day workout streak! Fr fr you're killing it! 🔥",
-            "badge_url": "/static/badges/streak_7.png",
-            "meme_url": "/static/memes/streak_7.gif",
+            "badge_url": "https://img.shields.io/badge/Streak-7%20Days-bronze?style=for-the-badge&logo=firebase&logoColor=white",
+            "meme_url": "https://media.giphy.com/media/3o6ZtrbzjGAAXyx2WQ/giphy.gif",
             "points": 100,
             "days": 7
         },
         {
             "name": "Main Character Energy",
             "description": "30-day streak! You're literally that girl/guy! 💅",
-            "badge_url": "/static/badges/streak_30.png",
-            "meme_url": "/static/memes/streak_30.gif",
+            "badge_url": "https://img.shields.io/badge/Streak-30%20Days-gold?style=for-the-badge&logo=firebase&logoColor=white",
+            "meme_url": "https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif",
             "points": 500,
             "days": 30
         }
@@ -27,15 +27,15 @@ ACHIEVEMENTS = {
         {
             "name": "Gains = Obtained",
             "description": "First PR! Let's get this bread! 🍞",
-            "badge_url": "/static/badges/first_pr.png",
-            "meme_url": "/static/memes/first_pr.gif",
+            "badge_url": "https://img.shields.io/badge/Achievement-PR%20Breaker-red?style=for-the-badge&logo=powershell&logoColor=white",
+            "meme_url": "https://media.giphy.com/media/3o7TKDkDbIDJieKbVm/giphy.gif",
             "points": 50
         },
         {
             "name": "Absolute Unit",
             "description": "5 PRs in one month! Sheeeesh! 💪",
-            "badge_url": "/static/badges/pr_master.png",
-            "meme_url": "/static/memes/pr_master.gif",
+            "badge_url": "https://img.shields.io/badge/Achievement-PR%20Breaker-red?style=for-the-badge&logo=powershell&logoColor=white",
+            "meme_url": "https://media.giphy.com/media/3o7TKDkDbIDJieKbVm/giphy.gif",
             "points": 200
         }
     ],
@@ -43,15 +43,15 @@ ACHIEVEMENTS = {
         {
             "name": "Gym Tok Famous",
             "description": "Completed 10 workouts! The algorithm loves you! 📱",
-            "badge_url": "/static/badges/10_workouts.png",
-            "meme_url": "/static/memes/10_workouts.gif",
+            "badge_url": "https://img.shields.io/badge/Achievement-First%20Workout-blue?style=for-the-badge&logo=adidas&logoColor=white",
+            "meme_url": "https://media.giphy.com/media/3o7TKtsBMu4lwFXvJS/giphy.gif",
             "points": 150
         },
         {
             "name": "Built Different",
             "description": "50 workouts completed! No skips, just W's! 👑",
-            "badge_url": "/static/badges/50_workouts.png",
-            "meme_url": "/static/memes/50_workouts.gif",
+            "badge_url": "https://img.shields.io/badge/Achievement-First%20Workout-blue?style=for-the-badge&logo=adidas&logoColor=white",
+            "meme_url": "https://media.giphy.com/media/3o7TKtsBMu4lwFXvJS/giphy.gif",
             "points": 750
         }
     ]
