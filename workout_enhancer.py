@@ -1,6 +1,6 @@
 import json
 import random
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import openai
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
@@ -22,6 +22,38 @@ class WorkoutEnhancer:
                 "client_secret": spotify_client_secret,
                 "redirect_uri": "http://localhost:8000/callback"
             }
+
+        self.spotify_available = False
+        self.elevenlabs_available = False
+        self.spotify = None
+        self.generate_voice = None
+        
+        # Initialize Spotify if credentials are provided
+        if spotify_client_id and spotify_client_secret:
+            try:
+                import spotipy
+                from spotipy.oauth2 import SpotifyClientCredentials
+                
+                auth_manager = SpotifyClientCredentials(
+                    client_id=spotify_client_id,
+                    client_secret=spotify_client_secret
+                )
+                self.spotify = spotipy.Spotify(auth_manager=auth_manager)
+                self.spotify_available = True
+                print("✅ Spotify initialized successfully")
+            except Exception as e:
+                print(f"⚠️ Spotify initialization failed: {str(e)}")
+        
+        # Initialize ElevenLabs if API key is provided
+        if elevenlabs_api_key:
+            try:
+                from elevenlabs import generate, set_api_key
+                set_api_key(elevenlabs_api_key)
+                self.generate_voice = generate
+                self.elevenlabs_available = True
+                print("✅ ElevenLabs initialized successfully")
+            except Exception as e:
+                print(f"⚠️ ElevenLabs initialization failed: {str(e)}")
 
     async def generate_motivational_message(self, user_id: int, message_type: str) -> Dict:
         """Generate a personalized motivational message using AI"""
@@ -56,8 +88,8 @@ class WorkoutEnhancer:
 
         # Generate audio using ElevenLabs if available
         audio_filename = None
-        if self.elevenlabs_api_key:
-            audio = generate(
+        if self.elevenlabs_available:
+            audio = self.generate_voice(
                 text=message_content,
                 voice=motivator.voice_id,
                 model="eleven_monolingual_v1"
@@ -203,3 +235,104 @@ class WorkoutEnhancer:
             "genres": genres,
             "bpm_range": bpm_range
         }
+
+    async def enhance_workout(self, workout_plan: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+        """Enhance workout with music and voice features if available"""
+        enhanced_plan = workout_plan.copy()
+        
+        # Add Spotify playlist if available
+        if self.spotify_available:
+            try:
+                playlist = self._get_workout_playlist()
+                if playlist:
+                    enhanced_plan["spotify_playlist"] = playlist
+            except Exception as e:
+                print(f"Error getting workout playlist: {e}")
+        
+        # Add voice guidance if available
+        if self.elevenlabs_available:
+            try:
+                audio_path = self._generate_workout_audio(workout_plan, user_id)
+                if audio_path:
+                    enhanced_plan["audio_url"] = audio_path
+            except Exception as e:
+                print(f"Error generating workout audio: {e}")
+        
+        return enhanced_plan
+
+    def _get_workout_playlist(self, workout_type: str = "workout") -> Optional[Dict[str, Any]]:
+        """Get a workout playlist if Spotify is available"""
+        if not self.spotify_available:
+            return None
+
+        try:
+            # Search for a workout playlist
+            results = self.spotify.search(
+                q=f"{workout_type} motivation",
+                type="playlist",
+                limit=1
+            )
+            
+            if results and results["playlists"]["items"]:
+                playlist = results["playlists"]["items"][0]
+                return {
+                    "name": playlist["name"],
+                    "url": playlist["external_urls"]["spotify"],
+                    "uri": playlist["uri"]
+                }
+            return None
+        except Exception as e:
+            print(f"Error getting workout playlist: {e}")
+            return None
+
+    def _generate_workout_audio(self, workout_plan: Dict[str, Any], user_id: int) -> Optional[str]:
+        """Generate voice guidance if ElevenLabs is available"""
+        if not self.elevenlabs_available:
+            return None
+
+        try:
+            # Create the workout script
+            script = self._create_workout_script(workout_plan)
+            
+            # Generate audio
+            audio = self.generate_voice(
+                text=script,
+                voice="Arnold",
+                model="eleven_monolingual_v1"
+            )
+            
+            # Save to file
+            filename = f"static/audio/workout_{user_id}_{hash(script)}.mp3"
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            
+            with open(filename, "wb") as f:
+                f.write(audio)
+            
+            return filename
+        except Exception as e:
+            print(f"Error generating workout audio: {e}")
+            return None
+
+    def _create_workout_script(self, workout_plan: Dict[str, Any]) -> str:
+        """Create a script for the workout audio"""
+        script = "Welcome to your personalized workout! Let's begin.\n\n"
+        
+        if "exercises" in workout_plan:
+            for exercise in workout_plan["exercises"]:
+                if isinstance(exercise, dict):
+                    name = exercise.get("name", "")
+                    sets = exercise.get("sets", "")
+                    reps = exercise.get("reps", "")
+                    duration = exercise.get("duration", "")
+                    
+                    if sets and reps:
+                        script += f"Next up is {name} for {sets} sets of {reps} reps.\n"
+                    elif duration:
+                        script += f"Next up is {name} for {duration}.\n"
+                    else:
+                        script += f"Next up is {name}.\n"
+        
+        if "motivation" in workout_plan:
+            script += f"\n{workout_plan['motivation']}"
+        
+        return script

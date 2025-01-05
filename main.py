@@ -17,7 +17,7 @@ from workout_generator import WorkoutGenerator
 from voice_generator import VoiceGenerator
 from spotify_player import SpotifyPlayer
 from database import engine, SessionLocal
-from workout_enhancer import WorkoutEnhancer
+from workout_enhancer import EnhancedWorkoutEnhancer
 
 # Load environment variables
 load_dotenv()
@@ -85,9 +85,7 @@ app.add_middleware(
 templates = Jinja2Templates(directory="templates")
 
 # Initialize enhancer with optional credentials
-workout_enhancer = WorkoutEnhancer(
-    db_session=SessionLocal(),
-    elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY"),
+workout_enhancer = EnhancedWorkoutEnhancer(
     spotify_client_id=os.getenv("SPOTIFY_CLIENT_ID"),
     spotify_client_secret=os.getenv("SPOTIFY_CLIENT_SECRET")
 )
@@ -111,7 +109,7 @@ async def read_root(request: Request, db: Session = Depends(get_db)):
         "index.html",
         {
             "request": request,
-            "spotify_enabled": spotify_player.spotify_available,
+            "spotify_enabled": workout_enhancer.spotify_available,
             "voice_enabled": voice_generator.elevenlabs_available
         }
     )
@@ -135,17 +133,8 @@ async def get_workout(user_id: int, db: Session = Depends(get_db)):
             "goals": user.goals
         })
         
-        # Add optional features
-        if voice_generator.elevenlabs_available:
-            audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
-            if audio_path:
-                workout_plan["audio_url"] = audio_path
-        
-        if spotify_player.spotify_available:
-            playlist = spotify_player.get_workout_playlist()
-            if playlist:
-                workout_plan["spotify_playlist"] = playlist
-        
+        # Enhance workout with optional features
+        workout_plan = await workout_enhancer.enhance_workout(workout_plan, user_id)
         return workout_plan
     
     # Return existing workout with optional features
@@ -154,16 +143,8 @@ async def get_workout(user_id: int, db: Session = Depends(get_db)):
         "motivation": workout_generator.generate_motivation_message(user.name)
     }
     
-    if voice_generator.elevenlabs_available:
-        audio_path = voice_generator.generate_workout_audio(user_id, workout_plan)
-        if audio_path:
-            workout_plan["audio_url"] = audio_path
-    
-    if spotify_player.spotify_available:
-        playlist = spotify_player.get_workout_playlist()
-        if playlist:
-            workout_plan["spotify_playlist"] = playlist
-    
+    # Enhance workout with optional features
+    workout_plan = await workout_enhancer.enhance_workout(workout_plan, user_id)
     return workout_plan
 
 @app.post("/users/")
