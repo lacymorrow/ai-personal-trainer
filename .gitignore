@@ -1,8 +1,29 @@
-.env
+# Python
 __pycache__/
-*.pyc
-.DS_Store
-*.db
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+venv_test/
+env/
+ENV/
+.env
+.venv
+.python-version
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
 static/audio/*
 !static/audio/.gitkeep
-venv/
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
